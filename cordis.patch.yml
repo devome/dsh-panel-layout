@@ -1,0 +1,13 @@
+# dsh-panel-layout bundle layer.
+#
+# One plugin row. The package's Host half is a no-op: all the work happens in
+# the browser half. Mounting the row is what lets
+# @deepseek-ai/dsh-client-modules find the package's `dsh.client` declaration
+# and serve lib/client.js beside the shell.
+#
+# `name` must be the FULL package specifier as installed in the profile's
+# node_modules (pnpm links packages by their true name, so a bare
+# `dsh-panel-layout` would fail to resolve with ERR_MODULE_NOT_FOUND).
+- insert:
+    - id: dsh-panel-layout
+      name: dsh-panel-layout
