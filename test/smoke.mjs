@@ -271,6 +271,19 @@ if (JSDOM !== undefined) {
 	check("the icon rail is left untouched", !document.documentElement.hasAttribute("data-dpl-wide"));
 	check("no row is hidden in the rail", Array.from(rail.nav.children).every((row) => !row.hasAttribute("data-dpl-hidden")));
 	check("the rail is not restyled", rail.nav.getAttribute("data-dpl-mode-core") === null);
+	/* The bottom-left launcher carries Settings / Feedback / Sign in. Hiding it
+	   is only safe while those three are up in the panel menu; the rail drops
+	   them, so the rule must be scoped to the expanded state as well. */
+	const css = inner.styles();
+	check(
+		"the launcher is only hidden in the expanded state",
+		/\[data-dpl-mode\]\[data-dpl-wide\]\s+\[data-slot="settings\.launcher"\]/.test(css),
+		css.match(/html\[data-dpl-mode\][^{]*settings\.launcher[^{]*\{/)?.[0] ?? "rule not found",
+	);
+	check(
+		"the launcher hide never applies to the rail",
+		!/html\[data-dpl-mode\]\s*\[data-slot="settings\.launcher"\]/.test(css),
+	);
 
 	/** A nav that leaves the document is dropped and re-located. */
 	document.body.innerHTML = "";
