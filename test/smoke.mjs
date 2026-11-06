@@ -153,6 +153,9 @@ if (JSDOM !== undefined) {
 			button.setAttribute("aria-label", panel.label);
 			const glyph = document.createElement("span");
 			glyph.setAttribute("data-slot", "sidebar.panellist");
+			/* The glyph that panel's own plugin registers: a sprite reference here,
+			   standing in for whatever markup that plugin ships. */
+			glyph.innerHTML = `<svg width="16" height="16" data-icon="panel-${panel.id}"><use href="#panel-${panel.id}"></use></svg>`;
 			button.appendChild(glyph);
 			if (labelled) {
 				const title = document.createElement("span");
@@ -368,6 +371,46 @@ if (JSDOM !== undefined) {
 	);
 	check("the tight nav still keeps its More launcher", tight.nav.querySelector("[data-dpl-more]") !== null);
 	check("the hidden entries are not duplicated in the nav", tight.nav.querySelectorAll("button[data-dpl-util]").length === 0);
+
+	/* ── icons: every row keeps the icon it belongs to ──────────────────────
+	   This plugin draws no glyph of its own: the absorbed utilities reference
+	   the shell's own sprite entries, and a panel listed in More carries the
+	   markup its own row renders, so no row is ever left blank. */
+	console.log("\nicons");
+	inner.setPreferences({ mode: "row", rows: 3 }, false);
+	inner.resetOrder();
+	const iconNav = buildSidebar({ width: 1400 });
+	inner.sync();
+	for (const id of ["settings", "contact", "signin"]) {
+		const button = iconNav.nav.querySelector(`button[data-dpl-util="${id}"]`);
+		const use = button === null ? null : button.querySelector("use");
+		check(
+			`the ${id} row references the shell's own icon`,
+			use !== null && use.getAttribute("href") === "#" + inner.utilitySymbol(id),
+			button === null ? "row missing" : button.innerHTML.slice(0, 120),
+		);
+		check(`the ${id} row draws no glyph of its own`, button !== null && button.querySelector("path") === null);
+	}
+
+	inner.setPreferences({ mode: "list", rows: 1 }, false);
+	const glyphNav = buildSidebar({ width: 1600 });
+	inner.sync();
+	const glyphHidden = inner.hiddenEntries().filter((entry) => entry.kind === "panel");
+	check(
+		"a hidden panel keeps its own glyph markup",
+		glyphHidden.length > 0 && glyphHidden.every((entry) => /<use href="#panel-/.test(entry.glyph ?? "")),
+		JSON.stringify(glyphHidden.map((entry) => [entry.id, entry.glyph])),
+	);
+	const glyphTree = moreRow({ t: (key) => key, onDismiss: () => {} });
+	const glyphRows = glyphTree.children.slice(1);
+	check("every More row receives an icon node", glyphRows.every((row) => row.props.icon !== null && row.props.icon !== undefined));
+	const panelGlyphRows = glyphRows.filter((row) => typeof row.props.icon.type === "function");
+	check(
+		"no panel row falls back to an empty placeholder",
+		panelGlyphRows.length > 0 && panelGlyphRows.every((row) => /<svg/.test(row.props.icon.props.markup ?? "")),
+		JSON.stringify(panelGlyphRows.map((row) => row.props.icon.props.markup ?? null)),
+	);
+	check("the nav leaks no icon markup into its labels", glyphNav.nav.querySelector("button[data-dpl-util]") === null);
 } else {
 	console.log("jsdom is not available — the DOM half was skipped (npm install --no-save jsdom)");
 }
