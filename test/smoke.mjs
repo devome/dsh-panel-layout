@@ -415,6 +415,38 @@ if (JSDOM !== undefined) {
 		JSON.stringify(panelGlyphRows.map((row) => row.props.icon.props.markup ?? null)),
 	);
 	check("the nav leaks no icon markup into its labels", glyphNav.nav.querySelector("button[data-dpl-util]") === null);
+
+	/* ── a way out of More without a pointer drag ───────────────────────────
+	   Touch screens fire no HTML5 drag events, so every More row also carries a
+	   control that brings it to the head of the order, where the cap shows it. */
+	console.log("\nmove to front");
+	const frontTree = moreRow({ t: (key) => key, onDismiss: () => {} });
+	const frontRows = frontTree.children.slice(1);
+	check(
+		"every More row offers a move-to-front handler",
+		frontRows.every((row) => typeof row.props.onFront === "function"),
+		`${frontRows.length} rows`,
+	);
+	check("the control has a localized accessible name", inner.utilityLabel("settings") !== null && frontRows.every((row) => row.props.hint === "moveToFront"));
+
+	/* The row itself is a component, so the control is asserted through the
+	   reorder it performs rather than through the tree. */
+	const hiddenBefore = inner.hiddenEntries();
+	const promotedId = hiddenBefore[hiddenBefore.length - 1].id;
+	const liveBefore = inner.allLiveIds();
+	inner.moveToFront(promotedId);
+	const orderAfter = inner.readStoredOrder();
+	check("moving one to the front puts it first in the order", orderAfter[0] === promotedId, `${orderAfter[0]} vs ${promotedId}`);
+	check(
+		"moving one to the front keeps exactly the ids it had",
+		orderAfter.length === liveBefore.length && liveBefore.every((id) => orderAfter.includes(id)),
+		`${liveBefore.length} -> ${orderAfter.length}`,
+	);
+	inner.sync();
+	const stillHidden = inner.hiddenEntries().map((entry) => entry.id);
+	check("the promoted entry leaves More and the tail takes its place", !stillHidden.includes(promotedId) && stillHidden.length > 0, stillHidden.join(","));
+	inner.resetOrder();
+
 } else {
 	console.log("jsdom is not available — the DOM half was skipped (npm install --no-save jsdom)");
 }
