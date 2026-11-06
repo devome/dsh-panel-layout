@@ -46,7 +46,7 @@ dsh plugin --profile web install /path/to/dsh-panel-layout
 - **设置 / 意见反馈 / 登录**用宿主账号菜单原本那三个图标（`dsw-icon-settings-outline-medium`、`dsw-icon-paper-plane-outline-medium`、`dsw-icon-user-outline-medium`）。宿主把所有图标注册成页面级 `<symbol>`，所以菜单行用 `<svg><use href="#…">` 引用同一个 symbol，不复制路径、不重画。
 - 图标格的 14px 尺寸跟宿主自己的菜单行一致（`._itemIcon` 规则），面板项与三项的标签因此对齐。
 
-吸收进来的「设置 / 意见反馈 / 登录」分别走：宿主命令 `settings.open`（无绑定时回放「打开账号菜单 → 点设置行」这条人工路径）、宿主自己用的公开问卷链接（`__DSH_CONTACT_CONFIG__`，缺省值与宿主一致）、宿主账号流的 `startSignIn`（授权 URL 只在 attempt 走到 `waiting-browser` 后才出现，所以跟随 `remote.$stream` 的 account 流取，而不是读一次性返回值）。
+吸收进来的「设置 / 意见反馈 / 登录」分别走：宿主命令 `settings.open`（无绑定时先调宿主交给启动器的 `openSettings`，那里没有才回放「打开账号菜单 → 点设置行」这条人工路径）、宿主自己用的公开问卷链接（`__DSH_CONTACT_CONFIG__`，缺省值与宿主一致）、宿主账号流的 `startSignIn`（授权 URL 只在 attempt 走到 `waiting-browser` 后才出现，所以跟随 `remote.$stream` 的 account 流取，而不是读一次性返回值）。
 
 不引入任何 Harness 客户端包，只用 `--dsw-alias-*` 主题令牌，所以宿主升级换了类名也不会崩。
 

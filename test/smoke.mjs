@@ -285,6 +285,28 @@ if (JSDOM !== undefined) {
 		!/html\[data-dpl-mode\]\s*\[data-slot="settings\.launcher"\]/.test(css),
 	);
 
+	/* ── opening Settings without flashing the account menu ─────────────────
+	   The shell hands its open-settings action to the launcher's occupant, so
+	   the launcher's own node carries it; reading it there is one call, no
+	   menu. When that shape is absent the lookup must simply report failure and
+	   let the caller fall back. */
+	console.log("\nopen settings");
+	const built = buildSidebar({ signedOut: true });
+	check("without a shell node there is no direct route", inner.openSettingsDirectly() === false);
+
+	const holder = built && document.querySelector('[data-slot="settings.launcher"] button');
+	let opened = 0;
+	const carrier = { memoizedProps: { openSettings: () => { opened += 1; } } };
+	holder["__reactFiber$test"] = { memoizedProps: { openSettings: undefined }, return: { memoizedProps: {}, return: carrier } };
+	check("the route is found up the fiber chain", inner.openSettingsDirectly() === true);
+	check("the route calls the shell's own action exactly once", opened === 1, `opened ${opened}`);
+	check("a node with throwaway props never throws", (() => {
+		try {
+			holder["__reactFiber$broken"] = { get memoizedProps() { throw new Error("nope"); } };
+			return true;
+		} catch { return false; }
+	})());
+
 	/** A nav that leaves the document is dropped and re-located. */
 	document.body.innerHTML = "";
 	inner.sync();
