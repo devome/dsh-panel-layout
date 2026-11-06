@@ -207,6 +207,10 @@ if (JSDOM !== undefined) {
 	check("the expanded phase is detected", document.documentElement.hasAttribute("data-dpl-wide"));
 	check("label cells are tagged", narrow.nav.querySelector("span[data-dpl-label]") !== null);
 	check("the More launcher is recognised", narrow.nav.querySelector("[data-dpl-more]") !== null);
+	/* The launcher is a row like any other: in row mode its name cell must be
+	   tagged too, or the 36px cell shows the first character of its label. */
+	check("the More launcher's name cell is tagged", narrow.nav.querySelector("[data-dpl-more] span[data-dpl-label]") !== null);
+	check("the More launcher keeps its name as a tooltip", narrow.nav.querySelector("[data-dpl-more] button").getAttribute("title") === "更多");
 	const oneRowCap = Math.max(1, Math.floor((200 + 4) / (36 + 4)));
 	check("one row caps the visible cells", visibleRows(narrow.nav).length === oneRowCap, `${visibleRows(narrow.nav).length} of ${oneRowCap}`);
 	check("overflow rows are hidden, not removed", narrow.nav.children.length > visibleRows(narrow.nav).length);
