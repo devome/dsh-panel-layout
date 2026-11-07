@@ -75,6 +75,31 @@ for (const locale of ["en.json", "zh.json"]) {
 	check(`locale/${locale} has meta.description`, typeof parsed.meta?.description === "string" && parsed.meta.description !== "");
 }
 
+/* Both READMEs ship, and each links the other: the Chinese file is the
+   default one a visitor lands on, the English one is the translation. */
+for (const name of ["README.md", "README.en.md"]) {
+	const path = join(root, name);
+	check(`${name} exists`, existsSync(path), path);
+	check(`files includes ${name}`, files.includes(name), JSON.stringify(files));
+	if (!existsSync(path)) continue;
+	const text = readFileSync(path, "utf8");
+	check(`${name} starts with a level-one title`, /^# dsh-panel-layout\s*$/m.test(text.split("\n")[0]));
+	const other = name === "README.md" ? "README.en.md" : "README.md";
+	check(`${name} links ${other}`, text.includes(`](${other})`), other);
+}
+
+/* The licence is MIT, and the file has to agree with the manifest: npm and
+   most registries read one from `license` and the other from the file. */
+const licensePath = join(root, "LICENSE");
+check("LICENSE exists", existsSync(licensePath), licensePath);
+check("package.json declares MIT", manifest.license === "MIT", String(manifest.license));
+check("files includes LICENSE", files.includes("LICENSE"), JSON.stringify(files));
+if (existsSync(licensePath)) {
+	const license = readFileSync(licensePath, "utf8");
+	check("LICENSE is the MIT text", license.startsWith("MIT License") && license.includes("Permission is hereby granted, free of charge"));
+	check("LICENSE carries a copyright holder", /Copyright \(C\) \d{4} \S/.test(license));
+}
+
 const icon = join(root, "icon.svg");
 check("icon exists", existsSync(icon), icon);
 if (existsSync(icon)) {

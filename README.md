@@ -1,5 +1,7 @@
 # dsh-panel-layout
 
+中文 | [English](README.en.md)
+
 侧边栏面板菜单的布局、排序与收纳。用按钮行或列表排布「插件 / 插件市场 / 上下文 / 任务板 / MCP …」这一栏，设定按钮行最多几行，拖动排序；放不下的和左下角「更多」里的设置、意见反馈、登录一起收进「更多」。
 
 DSH Web 侧边栏顶部的全局面板菜单（`sidebar.panellist`）由宿主渲染：每项一行带图标与文字，末尾是「更多」启动器。左下角的账号启动器在未登录时就是一个「更多」，底下挂着设置 / 意见反馈 / 登录三项。本插件把这两处合成一个可配置的菜单。
@@ -44,7 +46,7 @@ dsh plugin --profile web install /path/to/dsh-panel-layout
 
 - **面板项**用它自己插件注册的图标。每行图标就是该插件 `sidebar.panellist` 注入的内容；项被上限挤进「更多」时，本插件把那一行的图标结构原样搬进菜单行，所以插件换了图标菜单跟着换，插件自己画的 SVG / 组件 / sprite 引用都照搬。
 - **设置 / 意见反馈 / 登录**用宿主账号菜单原本那三个图标（`dsw-icon-settings-outline-medium`、`dsw-icon-paper-plane-outline-medium`、`dsw-icon-user-outline-medium`）。宿主把所有图标注册成页面级 `<symbol>`，所以菜单行用 `<svg><use href="#…">` 引用同一个 symbol，不复制路径、不重画。
-- 图标格的 14px 尺寸跟宿主自己的菜单行一致（`._itemIcon` 规则），面板项与三项的标签因此对齐。
+- 图标格 16px，与那三项原始图标的绘制尺寸一致，面板项与三项的标签因此起点对齐。
 
 吸收进来的「设置 / 意见反馈 / 登录」分别走：宿主命令 `settings.open`（无绑定时先调宿主交给启动器的 `openSettings`，那里没有才回放「打开账号菜单 → 点设置行」这条人工路径）、宿主自己用的公开问卷链接（`__DSH_CONTACT_CONFIG__`，缺省值与宿主一致）、宿主账号流的 `startSignIn`（授权 URL 只在 attempt 走到 `waiting-browser` 后才出现，所以跟随 `remote.$stream` 的 account 流取，而不是读一次性返回值）。
 
@@ -73,3 +75,7 @@ DPL_JSDOM=/path/to/jsdom node test/smoke.mjs # 指定 jsdom 位置（不装也�
 - 把一项排到最前，会把原本可见的最后一项挤进「更多」——收纳位是固定的，换来一个必然挤掉一个。
 - 图标不自绘：面板项照搬它自己插件注册的那份图标结构，三项引用宿主 sprite 里的同名 symbol。宿主若改图标 id 或改成内联路径，三项会失去图标（面板项不受影响）。
 - 面板项的行数上限按 36px 单元格估算；宿主若改了单元格尺寸，需同步 `CELL` 常量。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。
