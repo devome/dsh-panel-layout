@@ -2,6 +2,15 @@
 
 [中文](README.md) | English
 
+https://github.com/user-attachments/assets/9111c670-63ae-499f-ab50-a6fcf16fad87
+
+| View | Light | Dark |
+|---|---|---|
+| Button row · 1 row | ![One button row (light)](https://github.com/user-attachments/assets/2868e611-14ed-4aa7-9e16-e0c783639fa5) | ![One button row (dark)](https://github.com/user-attachments/assets/9b7c6b2e-10f2-43cc-8a1d-21d96dab6653) |
+| Button row · 2 rows | ![Two button rows (light)](https://github.com/user-attachments/assets/01c45f3d-7cc0-4ef2-ae1a-bac50c644027) | ![Two button rows (dark)](https://github.com/user-attachments/assets/56b6452c-c0d3-4e09-8979-b965003c9cfe) |
+| List | ![List mode (light)](https://github.com/user-attachments/assets/82e14045-e8d3-49fe-a237-1318a238e5e1) | ![List mode (dark)](https://github.com/user-attachments/assets/f1d5eb52-d1c2-4dcf-9c48-707ce95bfcb5) |
+| Settings row | ![Settings → General (light)](https://github.com/user-attachments/assets/980a08e6-227e-4df4-9b38-cff6f86fe349) | ![Settings → General (dark)](https://github.com/user-attachments/assets/19f613b3-fe3a-436f-9635-6589eb4e4a93) |
+
 Layout, ordering and folding for the sidebar panel menu. Arrange the row of
 Plugins / Plugin Market / Context / Task board / MCP entries as a button row or
 a list, cap how many rows the button row may use, drag to reorder — and fold

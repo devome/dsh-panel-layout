@@ -2,6 +2,15 @@
 
 中文 | [English](README.en.md)
 
+https://github.com/user-attachments/assets/9111c670-63ae-499f-ab50-a6fcf16fad87
+
+| 视图 | 浅色 | 深色 |
+|---|---|---|
+| 按钮行 · 1 行 | ![按钮行 1 行（浅色）](https://github.com/user-attachments/assets/2868e611-14ed-4aa7-9e16-e0c783639fa5) | ![按钮行 1 行（深色）](https://github.com/user-attachments/assets/9b7c6b2e-10f2-43cc-8a1d-21d96dab6653) |
+| 按钮行 · 2 行 | ![按钮行 2 行（浅色）](https://github.com/user-attachments/assets/01c45f3d-7cc0-4ef2-ae1a-bac50c644027) | ![按钮行 2 行（深色）](https://github.com/user-attachments/assets/56b6452c-c0d3-4e09-8979-b965003c9cfe) |
+| 列表 | ![列表模式（浅色）](https://github.com/user-attachments/assets/82e14045-e8d3-49fe-a237-1318a238e5e1) | ![列表模式（深色）](https://github.com/user-attachments/assets/f1d5eb52-d1c2-4dcf-9c48-707ce95bfcb5) |
+| 设置项 | ![设置 → 通用（浅色）](https://github.com/user-attachments/assets/980a08e6-227e-4df4-9b38-cff6f86fe349) | ![设置 → 通用（深色）](https://github.com/user-attachments/assets/19f613b3-fe3a-436f-9635-6589eb4e4a93) |
+
 侧边栏面板菜单的布局、排序与收纳。用按钮行或列表排布「插件 / 插件市场 / 上下文 / 任务板 / MCP …」这一栏，设定按钮行最多几行，拖动排序；放不下的和左下角「更多」里的设置、意见反馈、登录一起收进「更多」。
 
 DSH Web 侧边栏顶部的全局面板菜单（`sidebar.panellist`）由宿主渲染：每项一行带图标与文字，末尾是「更多」启动器。左下角的账号启动器在未登录时就是一个「更多」，底下挂着设置 / 意见反馈 / 登录三项。本插件把这两处合成一个可配置的菜单。

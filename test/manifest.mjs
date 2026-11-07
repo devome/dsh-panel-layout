@@ -100,6 +100,29 @@ if (existsSync(licensePath)) {
 	check("LICENSE carries a copyright holder", /Copyright \(C\) \d{4} \S/.test(license));
 }
 
+/* Every image a README shows is hosted, not checked in: a relative path
+   renders on GitHub and breaks on npmjs, where the README has no repository to
+   resolve against. Absolute URLs render in both places and keep the tarball
+   small, so a relative path here is a failure rather than a preference. */
+const readmes = ["README.md", "README.en.md"];
+const referenced = new Set();
+for (const name of readmes) {
+	const text = readFileSync(join(root, name), "utf8");
+	for (const match of text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) referenced.add(match[1]);
+}
+check("the READMEs show screenshots", referenced.size > 0, `${referenced.size} images`);
+for (const target of referenced) {
+	check(`image ${target} is an absolute URL`, /^https:\/\//.test(target), target);
+}
+check("no screenshot is checked in", !existsSync(join(root, "screenshots")), "screenshots/ still present");
+check("no screenshot is shipped", !files.some((entry) => entry.startsWith("screenshots")), JSON.stringify(files));
+for (const name of readmes) {
+	const text = readFileSync(join(root, name), "utf8");
+	const videoAt = text.indexOf("user-attachments");
+	const shotAt = text.search(/!\[/);
+	check(`${name} shows the demo before the gallery`, videoAt !== -1 && shotAt > videoAt, `${videoAt} vs ${shotAt}`);
+}
+
 const icon = join(root, "icon.svg");
 check("icon exists", existsSync(icon), icon);
 if (existsSync(icon)) {
