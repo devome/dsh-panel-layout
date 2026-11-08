@@ -2,6 +2,15 @@
   "name": "dsh-panel-layout",
   "version": "0.1.0",
   "description": "侧边栏面板菜单的布局与排序：按钮行/列表切换、按钮行行数上限、拖动排序，溢出项收进「更多」，并把左下角「更多」里的设置/意见反馈/登录并入面板菜单。Choose a button-row or list layout for the sidebar panel menu, cap the rows, drag to reorder, fold overflow into More, and absorb Settings / Feedback / Sign in from the bottom-left launcher.",
+  "author": "devome <evinedeng@hotmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devome/dsh-panel-layout.git"
+  },
+  "homepage": "https://github.com/devome/dsh-panel-layout#readme",
+  "bugs": {
+    "url": "https://github.com/devome/dsh-panel-layout/issues"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -19,14 +28,15 @@
     "lib/index.js",
     "lib/client.js",
     "locale/*.json",
-    "test/manifest.mjs",
-    "test/smoke.mjs",
     "cordis.patch.yml",
     "icon.svg",
     "README.md",
     "README.en.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
     "manifestVersion": 1,
     "bundle": {
@@ -36,10 +46,13 @@
       "platform": "web"
     },
     "compatibility": {
-      "dsh": "^0.2.0-rc.1",
+      "dsh": "^0.2.1-rc.3 || ^0.2.2-0",
       "dshReleases": {
-        "0.2.0-rc.1": "compatible",
+        "0.2.1-rc.3": "compatible",
         "0.2.1-rc.4": "compatible",
+        "0.2.1-rc.5": "compatible",
+        "0.2.2-alpha.2": "compatible",
+        "0.2.2-alpha.3": "compatible",
         "0.2.2-rc.1": "compatible"
       }
     }
@@ -50,7 +63,7 @@
   },
   "engines": {
     "node": ">=22",
-    "dsh": "^0.2.0-rc.1"
+    "dsh": "^0.2.1-rc.3 || ^0.2.2-0"
   },
   "peerDependencies": {
     "react": "^18.2.0"
