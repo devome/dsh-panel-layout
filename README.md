@@ -40,6 +40,14 @@ dsh plugin --profile web install /path/to/dsh-panel-layout
 
 或在 DSH 里由 `plugin_manager` 以 `install_bundle` 指向本目录。安装后刷新页面生效；修改 `lib/client.js` 需要重启 Harness 才会重新生成浏览器模块。
 
+### 兼容性
+
+要求 DSH `0.2.1-rc.3` 或更新的 `0.2.x`：`engines.dsh` 写作 `^0.2.1-rc.3 || ^0.2.2-0`，逐一覆盖 `0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-alpha.2`、`0.2.2-alpha.3`、`0.2.2-rc.1`，并放行其后全部 `0.2.x`，排除 `0.3` 及以后。
+
+下限不是随手写的：`0.2.1-rc.3` 是 `dsh-client-ui-sidebar` 第一次提供 `sidebar.panellist.actions` 槽与 `aria-haspopup` 的「更多」启动器的版本。更早的宿主没有收纳位，被行数上限挤出的项无处可去——装上去会丢功能而不是降级。
+
+范围为什么不是更顺眼的 `^0.2.0-rc.1`：npm semver 的 caret 带预发布基线时，只在该 `major.minor.patch` 元组（及更低的）上放行预发布，`^0.2.0-rc.1` 会把 `0.2.1-rc.4`、`0.2.2-rc.1` 这类更高元组的预发布静默排除——DSH 自己的门用 `includePrerelease` 判得过，`npm install` 和第三方工具按默认规则判不过。写成 `^0.2.1-rc.3 || ^0.2.2-0` 后两种规则下结果一致。
+
 ## 实现要点
 
 宿主只把面板项的**图标**交给 `sidebar.panellist` 槽，行距、行数上限和顺序都归宿主所有，没有任何槽暴露这些。因此本插件：

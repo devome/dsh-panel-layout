@@ -41,7 +41,37 @@ check(
 check("no runtime dependencies", manifest.dependencies === undefined);
 check("react is an optional peer", manifest.peerDependencies?.react !== undefined && manifest.peerDependenciesMeta?.react?.optional === true);
 check("node engines allow the shipped runtime", />=22/.test(manifest.engines?.node ?? ""), manifest.engines?.node);
-check("dsh engines pin a compatible release", (manifest.engines?.dsh ?? "").startsWith("^0.2."), manifest.engines?.dsh);
+
+/* The host gate (dsh-app-boot `unmetRequirements`) reads `engines.dsh` alone
+   and satisfies it with `includePrerelease: true`; the market reads the same
+   field. A plain caret on a prerelease baseline (`^0.2.0-rc.1`) passes both of
+   those but silently drops every later prerelease under the default
+   npm-semver rule, so the range has to name its prerelease branches. The
+   floor is the first release whose `dsh-client-ui-sidebar` exposes
+   `sidebar.panellist.actions` and the `aria-haspopup` More launcher — without
+   them the overflow rows have nowhere to go. */
+const dshRange = manifest.engines?.dsh ?? "";
+check("dsh engines start at the first release with the More contract", /(^|\|\|)\s*\^0\.2\.1-rc\.3(\s|$)/.test(dshRange), dshRange);
+check("dsh engines cover the 0.2.2 prereleases", /\^0\.2\.2-0(\s|$)/.test(dshRange), dshRange);
+check("dsh engines exclude the pre-contract 0.2.0 series", !/\^0\.2\.0/.test(dshRange), dshRange);
+check("dsh engines exclude 0.3 and later", !/<1\.0/.test(dshRange) && !/\^1\./.test(dshRange), dshRange);
+check(
+	"dsh engines agree with the declared compatibility",
+	manifest.dsh?.compatibility?.dsh === dshRange,
+	String(manifest.dsh?.compatibility?.dsh),
+);
+
+/* `dsh.compatibility.dshReleases` is self-description — no host or market code
+   reads it — so its only job is to stay honest: the releases it lists must be
+   the ones the range above actually admits. */
+const releases = Object.entries(manifest.dsh?.compatibility?.dshReleases ?? {});
+check("the compatibility list is not empty", releases.length > 0, String(releases.length));
+for (const [version, verdict] of releases) {
+	check(`release ${version} is marked compatible`, verdict === "compatible", String(verdict));
+	check(`release ${version} looks like a 0.2 release`, /^0\.2\.\d+(-[a-z]+\.\d+)?$/.test(version), version);
+}
+const floor = dshRange.match(/0\.2\.\d+-rc\.\d+/)?.[0] ?? "";
+check("the compatibility list starts at the engine floor", floor !== "" && releases.some(([version]) => version === floor), `${floor} in ${JSON.stringify(releases.map(([v]) => v))}`);
 
 for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
 	if (!subpath.startsWith("./")) continue;
@@ -65,6 +95,26 @@ const files = manifest.files ?? [];
 for (const required of ["lib/index.js", "lib/client.js", "cordis.patch.yml", "locale/*.json", "icon.svg"]) {
 	check(`files includes ${required}`, files.includes(required), JSON.stringify(files));
 }
+
+/* The tarball carries the shipped half and the documents, nothing else. The
+   tests read the repository, not the package: a consumer installing this from
+   npm has no use for them, and they are the only files that would grow a
+   dependency on the checkout. */
+check("the tests are not shipped", !files.some((entry) => entry.startsWith("test")), JSON.stringify(files));
+check("screenshots.json is not shipped", !files.includes("screenshots.json"), JSON.stringify(files));
+check("files lists every shipped locale", files.includes("locale/*.json"), JSON.stringify(files));
+
+/* Registry metadata: npm shows these on the package page, and the market
+   resolves our entry back to this repository through `repository`, so a wrong
+   URL is a broken listing rather than a cosmetic slip. */
+const repo = "https://github.com/devome/dsh-panel-layout";
+check("repository points at this repository", manifest.repository?.url === `git+${repo}.git`, JSON.stringify(manifest.repository));
+check("repository declares the git type", manifest.repository?.type === "git", String(manifest.repository?.type));
+check("homepage is the README of this repository", manifest.homepage === `${repo}#readme`, String(manifest.homepage));
+check("bugs points at the issue tracker", manifest.bugs?.url === `${repo}/issues`, JSON.stringify(manifest.bugs));
+check("author is a name with an address", /^\S.* <[^@\s]+@[^@\s]+>$/.test(manifest.author ?? ""), String(manifest.author));
+check("publishConfig publishes publicly", manifest.publishConfig?.access === "public", JSON.stringify(manifest.publishConfig));
+check("keywords carry the market tag", (manifest.keywords ?? []).includes("dsh-plugin"), JSON.stringify(manifest.keywords));
 
 for (const locale of ["en.json", "zh.json"]) {
 	const path = join(root, "locale", locale);
@@ -98,6 +148,8 @@ if (existsSync(licensePath)) {
 	const license = readFileSync(licensePath, "utf8");
 	check("LICENSE is the MIT text", license.startsWith("MIT License") && license.includes("Permission is hereby granted, free of charge"));
 	check("LICENSE carries a copyright holder", /Copyright \(C\) \d{4} \S/.test(license));
+	const address = manifest.author?.match(/<([^>]+)>/)?.[1];
+	check("LICENSE names the manifest author", address !== undefined && license.includes(address), `${address}`);
 }
 
 /* Every image a README shows is hosted, not checked in: a relative path
@@ -116,6 +168,41 @@ for (const target of referenced) {
 }
 check("no screenshot is checked in", !existsSync(join(root, "screenshots")), "screenshots/ still present");
 check("no screenshot is shipped", !files.some((entry) => entry.startsWith("screenshots")), JSON.stringify(files));
+
+/* The market reads `screenshots.json` from the repository at HEAD — not from
+   the tarball — so this file exists to order and cap the gallery. It repeats
+   the README's URLs on purpose: the README is what a human reads, the JSON is
+   what the market reads, and a mismatch means the listing shows a picture the
+   documentation does not. */
+const shotsPath = join(root, "screenshots.json");
+check("screenshots.json exists", existsSync(shotsPath), shotsPath);
+if (existsSync(shotsPath)) {
+	let shots = null;
+	try {
+		shots = JSON.parse(readFileSync(shotsPath, "utf8"));
+	} catch (error) {
+		check("screenshots.json is valid JSON", false, error.message);
+	}
+	if (shots !== null) {
+		check("screenshots.json is an array", Array.isArray(shots), typeof shots);
+		const list = Array.isArray(shots) ? shots : [];
+		check("screenshots.json declares between 1 and 8 images", list.length >= 1 && list.length <= 8, `${list.length} images`);
+		const hosts = new Set(["raw.githubusercontent.com", "user-images.githubusercontent.com", "camo.githubusercontent.com", "github.com"]);
+		for (const shot of list) {
+			let url = null;
+			try {
+				url = new URL(shot);
+			} catch {
+				check(`screenshot ${shot} is an absolute URL`, false);
+				continue;
+			}
+			check(`screenshot ${shot} is https on GitHub hosting`, url.protocol === "https:" && hosts.has(url.hostname), url.hostname);
+			check(`screenshot ${shot} is not an SVG`, !/\.svg($|\?)/i.test(url.pathname), url.pathname);
+			check(`screenshot ${shot} appears in the README`, referenced.has(shot), "not referenced");
+		}
+		check("screenshots.json lists no duplicates", new Set(list).size === list.length, `${new Set(list).size} of ${list.length}`);
+	}
+}
 for (const name of readmes) {
 	const text = readFileSync(join(root, name), "utf8");
 	const videoAt = text.indexOf("user-attachments");

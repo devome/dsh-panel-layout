@@ -52,6 +52,26 @@ Or point `plugin_manager`'s `install_bundle` at this directory from inside DSH.
 A page refresh picks up an install; editing `lib/client.js` needs a Harness
 restart before the browser module is regenerated.
 
+### Compatibility
+
+DSH `0.2.1-rc.3` or a later `0.2.x`. `engines.dsh` reads
+`^0.2.1-rc.3 || ^0.2.2-0`, which admits `0.2.1-rc.3`, `0.2.1-rc.4`,
+`0.2.1-rc.5`, `0.2.2-alpha.2`, `0.2.2-alpha.3` and `0.2.2-rc.1` one by one,
+lets every later `0.2.x` through, and excludes `0.3` and beyond.
+
+The floor is not arbitrary: `0.2.1-rc.3` is the first release whose
+`dsh-client-ui-sidebar` exposes the `sidebar.panellist.actions` slot and the
+`aria-haspopup` More launcher. Earlier hosts have nowhere to put entries the
+row cap pushes out, so installing there would lose a feature rather than
+degrade one.
+
+Why not the tidier-looking `^0.2.0-rc.1`: with a prerelease baseline, npm
+semver's caret only admits prereleases of that same `major.minor.patch` tuple
+(and lower ones), so `^0.2.0-rc.1` silently excludes `0.2.1-rc.4` and
+`0.2.2-rc.1`. DSH's own gate passes them because it judges with
+`includePrerelease`, while `npm install` and third-party tooling judge with the
+default rule and do not. `^0.2.1-rc.3 || ^0.2.2-0` reads the same under both.
+
 ## How it works
 
 The shell hands the `sidebar.panellist` slot only each entry's **icon**. Row
