@@ -143,7 +143,7 @@ if (JSDOM !== undefined) {
 	 * glyph anchor and a label cell, the More launcher in its own wrapper, and
 	 * the bottom-left account launcher.
 	 */
-	function buildSidebar({ signedOut = true, labelled = true, width = 200 } = {}) {
+	function buildSidebar({ signedOut = true, labelled = true, width = 200, withMore = true } = {}) {
 		document.body.innerHTML = "";
 		const nav = document.createElement("nav");
 		nav.setAttribute("aria-label", "全局面板");
@@ -178,7 +178,7 @@ if (JSDOM !== undefined) {
 			more.appendChild(moreTitle);
 		}
 		wrap.appendChild(more);
-		nav.appendChild(wrap);
+		if (withMore) nav.appendChild(wrap);
 		document.body.appendChild(nav);
 
 		const launcher = document.createElement("div");
@@ -236,6 +236,16 @@ if (JSDOM !== undefined) {
 	const listEntries = visibleRows(list.nav).filter((row) => !row.hasAttribute("data-dpl-more"));
 	check("list mode keeps four panel entries", listEntries.length === 4, `${listEntries.length}`);
 	check("list mode still shows the More launcher", visibleRows(list.nav).some((row) => row.hasAttribute("data-dpl-more")));
+
+	/* A host below the declared floor renders no More launcher. Nothing may be
+	   hidden there: the overflow rows would have no menu to appear in, so the
+	   cap has to give way instead of stranding entries out of reach. */
+	inner.setPreferences({ mode: "row", rows: 1 }, false);
+	const floorless = buildSidebar({ width: 200, withMore: false });
+	inner.sync();
+	check("a host without More hides nothing", floorless.nav.querySelectorAll("[data-dpl-hidden]").length === 0, `${floorless.nav.querySelectorAll("[data-dpl-hidden]").length} hidden`);
+	check("a host without More shows every row", visibleRows(floorless.nav).length === floorless.nav.children.length);
+	check("a host without More reports no overflow to the menu", inner.hiddenEntries().length === 0, JSON.stringify(inner.hiddenEntries().map((entry) => entry.id)));
 
 	/** Order: a saved order becomes flex order, and More still renders last. */
 	inner.setPreferences({ mode: "row", rows: 3 }, false);
