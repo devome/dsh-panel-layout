@@ -35,18 +35,12 @@ DSH Web 侧边栏顶部的全局面板菜单（`sidebar.panellist`）由宿主�
 ## 安装
 
 ```bash
-dsh plugin --profile web install /path/to/dsh-panel-layout
+dsh plugin --profile web add github:devome/dsh-panel-layout
 ```
 
-或在 DSH 里由 `plugin_manager` 以 `install_bundle` 指向本目录。安装后刷新页面生效；修改 `lib/client.js` 需要重启 Harness 才会重新生成浏览器模块。
+在 DSH 的插件市场里搜 `dsh-panel-layout` 点安装也一样——市场对 GitHub 条目执行的就是这条命令。发布到 npm 之后，命令可简写为 `dsh plugin --profile web add dsh-panel-layout`。
 
-### 兼容性
-
-要求 DSH `0.2.1-rc.3` 或更新的 `0.2.x`：`engines.dsh` 写作 `^0.2.1-rc.3 || ^0.2.2-0`，逐一覆盖 `0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-alpha.2`、`0.2.2-alpha.3`、`0.2.2-rc.1`，并放行其后全部 `0.2.x`，排除 `0.3` 及以后。
-
-下限不是随手写的：`0.2.1-rc.3` 是 `dsh-client-ui-sidebar` 第一次提供 `sidebar.panellist.actions` 槽与 `aria-haspopup` 的「更多」启动器的版本。更早的宿主没有收纳位，被行数上限挤出的项无处可去——装上去会丢功能而不是降级。
-
-范围为什么不是更顺眼的 `^0.2.0-rc.1`：npm semver 的 caret 带预发布基线时，只在该 `major.minor.patch` 元组（及更低的）上放行预发布，`^0.2.0-rc.1` 会把 `0.2.1-rc.4`、`0.2.2-rc.1` 这类更高元组的预发布静默排除——DSH 自己的门用 `includePrerelease` 判得过，`npm install` 和第三方工具按默认规则判不过。写成 `^0.2.1-rc.3 || ^0.2.2-0` 后两种规则下结果一致。
+装好后刷新页面生效；修改 `lib/client.js` 需要重启 Harness 才会重新生成浏览器模块。
 
 ## 实现要点
 
@@ -56,14 +50,6 @@ dsh plugin --profile web install /path/to/dsh-panel-layout
 2. 给行打自己的 `data-dpl-*` 属性，用 flex `order` 排序、用 `display:none` 隐藏溢出项——宿主重渲染也不会丢；
 3. 引用 `<html data-dpl-mode>` 上的单一开关做样式门控，切回列表或卸载插件时宿主外观原样恢复；
 4. 只用 `sidebar.panellist.actions` 往宿主的「更多」里补行——那是 DOM 做不到的事：把被上限挤出去的项补回去。
-
-### 图标
-
-一个都不自绘，也一个都不留空：
-
-- **面板项**用它自己插件注册的图标。每行图标就是该插件 `sidebar.panellist` 注入的内容；项被上限挤进「更多」时，本插件把那一行的图标结构原样搬进菜单行，所以插件换了图标菜单跟着换，插件自己画的 SVG / 组件 / sprite 引用都照搬。
-- **设置 / 意见反馈 / 登录**用宿主账号菜单原本那三个图标（`dsw-icon-settings-outline-medium`、`dsw-icon-paper-plane-outline-medium`、`dsw-icon-user-outline-medium`）。宿主把所有图标注册成页面级 `<symbol>`，所以菜单行用 `<svg><use href="#…">` 引用同一个 symbol，不复制路径、不重画。
-- 图标格 16px，与那三项原始图标的绘制尺寸一致，面板项与三项的标签因此起点对齐。
 
 吸收进来的「设置 / 意见反馈 / 登录」分别走：宿主命令 `settings.open`（无绑定时先调宿主交给启动器的 `openSettings`，那里没有才回放「打开账号菜单 → 点设置行」这条人工路径）、宿主自己用的公开问卷链接（`__DSH_CONTACT_CONFIG__`，缺省值与宿主一致）、宿主账号流的 `startSignIn`（授权 URL 只在 attempt 走到 `waiting-browser` 后才出现，所以跟随 `remote.$stream` 的 account 流取，而不是读一次性返回值）。
 

@@ -45,32 +45,15 @@ shell's own pinning (`setPinned`).
 ## Install
 
 ```bash
-dsh plugin --profile web install /path/to/dsh-panel-layout
+dsh plugin --profile web add github:devome/dsh-panel-layout
 ```
 
-Or point `plugin_manager`'s `install_bundle` at this directory from inside DSH.
+Installing from the DSH plugin market does the same thing — that is the command
+the market runs for a GitHub entry. Once this is published to npm, it shortens
+to `dsh plugin --profile web add dsh-panel-layout`.
+
 A page refresh picks up an install; editing `lib/client.js` needs a Harness
 restart before the browser module is regenerated.
-
-### Compatibility
-
-DSH `0.2.1-rc.3` or a later `0.2.x`. `engines.dsh` reads
-`^0.2.1-rc.3 || ^0.2.2-0`, which admits `0.2.1-rc.3`, `0.2.1-rc.4`,
-`0.2.1-rc.5`, `0.2.2-alpha.2`, `0.2.2-alpha.3` and `0.2.2-rc.1` one by one,
-lets every later `0.2.x` through, and excludes `0.3` and beyond.
-
-The floor is not arbitrary: `0.2.1-rc.3` is the first release whose
-`dsh-client-ui-sidebar` exposes the `sidebar.panellist.actions` slot and the
-`aria-haspopup` More launcher. Earlier hosts have nowhere to put entries the
-row cap pushes out, so installing there would lose a feature rather than
-degrade one.
-
-Why not the tidier-looking `^0.2.0-rc.1`: with a prerelease baseline, npm
-semver's caret only admits prereleases of that same `major.minor.patch` tuple
-(and lower ones), so `^0.2.0-rc.1` silently excludes `0.2.1-rc.4` and
-`0.2.2-rc.1`. DSH's own gate passes them because it judges with
-`includePrerelease`, while `npm install` and third-party tooling judge with the
-default rule and do not. `^0.2.1-rc.3 || ^0.2.2-0` reads the same under both.
 
 ## How it works
 
@@ -88,24 +71,6 @@ so this plugin:
    appearance;
 4. uses `sidebar.panellist.actions` only for what the DOM cannot do: putting the
    entries the cap pushed out back into the shell's More menu.
-
-### Icons
-
-Nothing is drawn here, and no row is left without an icon:
-
-- **Panel entries** use the icon their own plugin registered. That row's icon
-  is whatever the plugin injected into `sidebar.panellist`; when the cap pushes
-  an entry into More, this plugin moves that row's icon structure into the menu
-  row unchanged, so a plugin that changes its icon changes the menu with it —
-  hand-drawn SVGs, components and sprite references all travel.
-- **Settings / Feedback / Sign in** use the three icons the shell's own account
-  menu uses (`dsw-icon-settings-outline-medium`,
-  `dsw-icon-paper-plane-outline-medium`, `dsw-icon-user-outline-medium`). The
-  shell registers every icon as a page-level `<symbol>`, so a menu row
-  references the same symbol with `<svg><use href="#…">` — no path is copied
-  and nothing is redrawn.
-- The icon cell is 16px, matching the icons those three are drawn at, so panel
-  entries and the absorbed three line up.
 
 The absorbed actions go through: the shell's `settings.open` command when it has
 a binding, otherwise the `openSettings` action the shell hands the launcher
