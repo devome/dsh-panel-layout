@@ -136,6 +136,11 @@ for (const name of ["README.md", "README.en.md"]) {
 	check(`${name} starts with a level-one title`, /^# dsh-panel-layout\s*$/m.test(text.split("\n")[0]));
 	const other = name === "README.md" ? "README.en.md" : "README.md";
 	check(`${name} links ${other}`, text.includes(`](${other})`), other);
+	/* The install line is the one command a reader copies, and after publishing
+	   to npm the package name is the shortest thing that works. A README that
+	   still tells them to clone is a README that sends them somewhere else for
+	   no reason. */
+	check(`${name} installs by the npm package name`, text.includes(`add ${manifest.name}`), manifest.name);
 }
 
 /* The licence is MIT, and the file has to agree with the manifest: npm and

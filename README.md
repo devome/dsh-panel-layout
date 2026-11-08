@@ -35,10 +35,10 @@ DSH Web 侧边栏顶部的全局面板菜单（`sidebar.panellist`）由宿主�
 ## 安装
 
 ```bash
-dsh plugin --profile web add github:devome/dsh-panel-layout
+dsh plugin --profile web add dsh-panel-layout
 ```
 
-在 DSH 的插件市场里搜 `dsh-panel-layout` 点安装也一样——市场对 GitHub 条目执行的就是这条命令。发布到 npm 之后，命令可简写为 `dsh plugin --profile web add dsh-panel-layout`。
+或在 DSH 的插件市场里搜 `dsh-panel-layout` 点安装。也可以直接从源码装：`dsh plugin --profile web add github:devome/dsh-panel-layout`。
 
 装好后刷新页面生效；修改 `lib/client.js` 需要重启 Harness 才会重新生成浏览器模块。
 

@@ -45,12 +45,11 @@ shell's own pinning (`setPinned`).
 ## Install
 
 ```bash
-dsh plugin --profile web add github:devome/dsh-panel-layout
+dsh plugin --profile web add dsh-panel-layout
 ```
 
-Installing from the DSH plugin market does the same thing — that is the command
-the market runs for a GitHub entry. Once this is published to npm, it shortens
-to `dsh plugin --profile web add dsh-panel-layout`.
+Or install it from the DSH plugin market. To track the source directly:
+`dsh plugin --profile web add github:devome/dsh-panel-layout`.
 
 A page refresh picks up an install; editing `lib/client.js` needs a Harness
 restart before the browser module is regenerated.
