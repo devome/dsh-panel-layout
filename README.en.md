@@ -30,7 +30,8 @@ configurable menu.
 | Layout switch | Settings → General → "Sidebar panel menu" toggles **Button row** and **List**; the button row is the default |
 | Row cap | 1–3 rows, 1 by default; cells per row are measured from the real sidebar width (36px cell + 4px gap) |
 | Drag to reorder | Drag any entry onto another one; row mode reads the left/right half for the insertion point, list mode the top/bottom half |
-| Pull out of More | Entries inside More drag too — drop one on the front half of a row and it takes that slot, back in view |
+| Sort inside More | The rows More lists sort against each other: drop on a row's top half to insert above it, its bottom half to insert below — always along the menu's own vertical axis, whichever layout the panel bar uses. The shell's own "browse more plugins" and "create your plugin" rows take no part |
+| Pull out of More | Entries inside More drag back up into the panel bar too — drop one on the front half of a row and it takes that slot, back in view |
 | Move to front (touch) | Every More row carries an up-arrow button; one tap sends the entry to the head of the order, where the cap always shows it. A touch screen fires no HTML5 drag events, so this is the way there |
 | Overflow | Entries past the cap are hidden and listed in the shell's own More menu, in the same order |
 | List budget | List mode keeps the first four entries on screen; the fifth onwards go to More |
@@ -69,7 +70,9 @@ so this plugin:
    switching back to list mode or unloading the plugin restores the shell's own
    appearance;
 4. uses `sidebar.panellist.actions` only for what the DOM cannot do: putting the
-   entries the cap pushed out back into the shell's More menu.
+   entries the cap pushed out back into the shell's More menu. Those rows are
+   drop targets as well, and sorting them writes back to the same `order`; the
+   shell's own two rows are not this plugin's and take no part.
 
 The absorbed actions go through: the shell's `settings.open` command when it has
 a binding, otherwise the `openSettings` action the shell hands the launcher
@@ -92,8 +95,8 @@ DPL_JSDOM=/path/to/jsdom node test/smoke.mjs # point at jsdom (the pure part run
 ```
 
 `test/smoke.mjs` drives one reconciliation pass over real nodes in jsdom:
-recognising rows, ordering, the cap, overflow hiding, sign-in state, and the
-rail being left alone.
+recognising rows, ordering, the cap, overflow hiding, sign-in state, the rail
+being left alone, and the rows inside More sorting against each other.
 
 ## Relation to `dsh-sidebar-panel-buttons`
 

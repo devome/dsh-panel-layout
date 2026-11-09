@@ -492,6 +492,130 @@ if (JSDOM !== undefined) {
 	check("the promoted entry leaves More and the tail takes its place", !stillHidden.includes(promotedId) && stillHidden.length > 0, stillHidden.join(","));
 	inner.resetOrder();
 
+	/* ── sorting the rows the menu lists ────────────────────────────────────
+	   Whatever the cap kept below the fold lives in More, so those rows sort
+	   against each other too — and the marker there is always a rule between
+	   two rows, because the menu is one column whoever laid out the nav. The
+	   two rows the shell contributes (browse / create a plugin) are its own and
+	   take no part in this. */
+	console.log("\nsorting inside the More menu");
+	const renderedMenuRows = () => {
+		const tree = moreRow({ t: (key) => key, onDismiss: () => {} });
+		return tree === null ? [] : tree.children.slice(1).map((node) => node.type(node.props));
+	};
+	/* A stand-in for the DOM node the handler gets through currentTarget. */
+	const fakeRow = (top = 0, height = 34) => {
+		const attrs = new Map();
+		return {
+			attrs,
+			getBoundingClientRect: () => ({ top, left: 0, width: 220, height }),
+			setAttribute: (key, value) => void attrs.set(key, value),
+			removeAttribute: (key) => void attrs.delete(key),
+		};
+	};
+	const startDrag = (row, host) => row.props.onDragStart({ currentTarget: host, dataTransfer: { setData: () => {} } });
+	const hoverRow = (row, host, clientY, clientX = 0) => {
+		let prevented = 0;
+		row.props.onDragOver({ currentTarget: host, clientY, clientX, dataTransfer: {}, preventDefault: () => { prevented += 1; } });
+		return prevented;
+	};
+	const dropOnRow = (row, host, clientY, clientX = 0) =>
+		row.props.onDrop({ currentTarget: host, clientY, clientX, dataTransfer: {}, preventDefault: () => {} });
+
+	/* Row layout above, a narrow sidebar: five entries fold into More. */
+	inner.setPreferences({ mode: "row", rows: 1 }, false);
+	inner.resetOrder();
+	const menuNav = buildSidebar({ width: 200 });
+	inner.sync();
+	const menuRows = renderedMenuRows();
+	check("the row layout folds entries into the menu", menuRows.length > 1, `${menuRows.length}`);
+	check("the nav really hid rows the menu now lists", menuNav.nav.querySelectorAll("[data-dpl-hidden]").length > 0);
+	check(
+		"every menu row is both draggable and a drop target",
+		menuRows.every((row) => row.props.draggable === true && typeof row.props.onDragOver === "function" && typeof row.props.onDrop === "function"),
+	);
+	check("no menu row is left without a drag end", menuRows.every((row) => typeof row.props.onDragEnd === "function"));
+	/* The marker needs its own rule: the nav's marker selectors are scoped to
+	   `nav[data-dpl-nav]` and would never paint a row inside the menu. */
+	check(
+		"the menu carries its own insertion marker",
+		/\.dpl-menuItem\[data-dpl-menu-drop="before"\]::before/.test(css) &&
+			/\.dpl-menuItem\[data-dpl-menu-drop="after"\]::after/.test(css),
+		css.match(/[^\n]*dpl-menu-drop[^\n]*/)?.[0] ?? "no rule",
+	);
+	check("the menu marker never borrows the nav's axis", !/nav\[data-dpl-nav\][^{]*dpl-menuItem/.test(css));
+
+	/* A drag that started inside the menu makes its rows accept the drop. */
+	const draggedHost = fakeRow();
+	startDrag(menuRows[0], draggedHost);
+	check("the dragged row is dimmed like a nav row", draggedHost.attrs.get("data-dpl-dragging") === "");
+
+	/* The marker follows the menu's own axis. A pointer on the right half but in
+	   the upper half of the row still means "insert above": the nav's row-mode
+	   horizontal rule must not leak in here. */
+	const markerRow = fakeRow(100, 34);
+	const markerPrevented = hoverRow(menuRows[2], markerRow, 105, 210);
+	check("hovering a menu row accepts the drop", markerPrevented === 1);
+	check("the menu marker sits above the upper half of the row", markerRow.attrs.get("data-dpl-menu-drop") === "before", markerRow.attrs.get("data-dpl-menu-drop"));
+	const lowerRow = fakeRow(100, 34);
+	hoverRow(menuRows[2], lowerRow, 128);
+	check("the menu marker sits below the lower half of the row", lowerRow.attrs.get("data-dpl-menu-drop") === "after", lowerRow.attrs.get("data-dpl-menu-drop"));
+
+	/* Sort one menu entry after another: the order it lands in is the same
+	   order the nav holds, so nothing here is a menu-only list. */
+	const draggingRowId = inner.hiddenEntries()[0].id;
+	const targetRowId = inner.hiddenEntries()[2].id;
+	const draggingRow = menuRows.find((row) => row.props["data-dpl-menu-id"] === draggingRowId);
+	const targetRow = menuRows.find((row) => row.props["data-dpl-menu-id"] === targetRowId);
+	check("both ends of the drag are in the menu", draggingRow !== undefined && targetRow !== undefined);
+	/* A marker left on a real node is what the next hover has to clean up. */
+	const staleMarker = document.createElement("button");
+	staleMarker.setAttribute("data-dpl-menu-drop", "before");
+	document.body.appendChild(staleMarker);
+	dropOnRow(targetRow, fakeRow(), 30);
+	const sortedOrder = inner.readStoredOrder();
+	check(
+		"dropping one menu row under another moves it there",
+		sortedOrder.indexOf(draggingRowId) === sortedOrder.indexOf(targetRowId) + 1,
+		sortedOrder.join(","),
+	);
+	check("the drop clears the insertion markers", !staleMarker.hasAttribute("data-dpl-menu-drop"));
+	check("the drop keeps every id it had", sortedOrder.length === inner.allLiveIds().length, `${sortedOrder.length}`);
+	staleMarker.remove();
+
+	/* The row cannot be dropped on itself, and a drag that ends puts the row's
+	   own state back so the next render is clean. */
+	const selfBefore = inner.readStoredOrder().join(",");
+	startDrag(targetRow, draggedHost);
+	dropOnRow(targetRow, fakeRow(), 30);
+	check("dropping a row on itself changes nothing", inner.readStoredOrder().join(",") === selfBefore);
+	hoverRow(targetRow, fakeRow(), 30);
+	targetRow.props.onDragEnd({ currentTarget: draggedHost });
+	check("a finished drag releases the row", !draggedHost.attrs.has("data-dpl-dragging") && !draggedHost.attrs.has("data-dpl-menu-drop"));
+	check("a finished drag stops accepting drops", hoverRow(menuRows[1], fakeRow(), 30) === 0);
+
+	/* The same menu in list layout: the rows behave identically. */
+	inner.setPreferences({ mode: "list", rows: 1 }, false);
+	inner.resetOrder();
+	const listNav = buildSidebar({ width: 1600 });
+	inner.sync();
+	const listMenuRows = renderedMenuRows();
+	check("the list layout folds entries into the menu", listMenuRows.length > 1, `${listMenuRows.length}`);
+	const listDragId = inner.hiddenEntries()[listMenuRows.length - 1].id;
+	const listTargetId = inner.hiddenEntries()[0].id;
+	const listDragRow = listMenuRows.find((row) => row.props["data-dpl-menu-id"] === listDragId);
+	const listTargetRow = listMenuRows.find((row) => row.props["data-dpl-menu-id"] === listTargetId);
+	startDrag(listDragRow, fakeRow());
+	dropOnRow(listTargetRow, fakeRow(), 0);
+	const listOrder = inner.readStoredOrder();
+	check(
+		"list layout sorts a menu row the same way",
+		listOrder.indexOf(listDragId) === listOrder.indexOf(listTargetId) - 1,
+		listOrder.join(","),
+	);
+	check("list layout still lists the same entries in the nav", visibleRows(listNav.nav).length > 0);
+	inner.resetOrder();
+
 } else {
 	console.log("jsdom is not available — the DOM half was skipped (npm install --no-save jsdom)");
 }
