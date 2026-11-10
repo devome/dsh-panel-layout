@@ -124,6 +124,19 @@ if (JSDOM !== undefined) {
 	inner.resetOrder();
 	check("reset clears the saved order", inner.readStoredOrder().length === 0);
 
+	// ── cell arithmetic ────────────────────────────────────────────────────
+	console.log("\nrow cells");
+	/* The nav's inline padding sits inside its client box, so cells only get
+	   width - 2*2; n cells need n*36 + (n-1)*4. */
+	const capacityOf = typeof inner.rowCapacity === "function" ? inner.rowCapacity : () => NaN;
+	check("the row capacity is a pure function the tests can pin", typeof inner.rowCapacity === "function");
+	check("a 264px nav packs six cells", capacityOf(264) === 6, String(capacityOf(264)));
+	check("a 280px nav packs seven", capacityOf(280) === 7, String(capacityOf(280)));
+	/* 277px: 277 mod 40 = 37, the band a width-plus-gap estimate rounds up. */
+	check("the nav's inline padding is not cell room", capacityOf(277) === 6, String(capacityOf(277)));
+	check("a nav too narrow for one cell still reports one", capacityOf(20) === 1, String(capacityOf(20)));
+	check("an unmeasured nav reports no cells", capacityOf(0) === 0, String(capacityOf(0)));
+
 	// ── DOM reconcile ──────────────────────────────────────────────────────
 	console.log("\nDOM reconcile");
 
@@ -143,11 +156,11 @@ if (JSDOM !== undefined) {
 	 * glyph anchor and a label cell, the More launcher in its own wrapper, and
 	 * the bottom-left account launcher.
 	 */
-	function buildSidebar({ signedOut = true, labelled = true, width = 200, withMore = true } = {}) {
+	function buildSidebar({ signedOut = true, labelled = true, width = 200, withMore = true, panels = PANELS } = {}) {
 		document.body.innerHTML = "";
 		const nav = document.createElement("nav");
 		nav.setAttribute("aria-label", "全局面板");
-		for (const panel of PANELS) {
+		for (const panel of panels) {
 			const button = document.createElement("button");
 			button.type = "button";
 			button.setAttribute("aria-label", panel.label);
@@ -211,12 +224,30 @@ if (JSDOM !== undefined) {
 	   tagged too, or the 36px cell shows the first character of its label. */
 	check("the More launcher's name cell is tagged", narrow.nav.querySelector("[data-dpl-more] span[data-dpl-label]") !== null);
 	check("the More launcher keeps its name as a tooltip", narrow.nav.querySelector("[data-dpl-more] button").getAttribute("title") === "更多");
-	const oneRowCap = Math.max(1, Math.floor((200 + 4) / (36 + 4)));
+	const oneRowCap = capacityOf(200);
 	check("one row caps the visible cells", visibleRows(narrow.nav).length === oneRowCap, `${visibleRows(narrow.nav).length} of ${oneRowCap}`);
 	check("overflow rows are hidden, not removed", narrow.nav.children.length > visibleRows(narrow.nav).length);
 	const narrowUtils = utilIds(narrow.nav);
 	check("a tight row cap pushes the absorbed utilities out of the nav", narrowUtils.length === 0, narrowUtils.join(","));
 	check("overflow rows keep their place in the DOM", narrow.nav.querySelectorAll('[data-dpl-hidden]').length > 0);
+
+	/** Entries that fill the row exactly used to take the More launcher's cell
+	   with them, so the launcher wrapped onto a second row of its own. 264px is
+	   the shell's default 280px sidebar minus its 8px inline padding: six cells
+	   a row, so six entries plus More is one too many. */
+	inner.__setSlots({ entriesOfSlot: () => PANELS.slice(0, 3).map((panel) => ({ options: panel })) });
+	const filled = buildSidebar({ width: 264, panels: PANELS.slice(0, 3) });
+	inner.sync();
+	check("a filled row still keeps a cell for More", visibleRows(filled.nav).length === 6, `${visibleRows(filled.nav).length}`);
+	check("a filled row hands one entry to the menu", inner.hiddenEntries().length === 1, JSON.stringify(inner.hiddenEntries().map((entry) => entry.id)));
+	check("the More launcher survives the trim", visibleRows(filled.nav).some((row) => row.hasAttribute("data-dpl-more")));
+	inner.__setSlots({ entriesOfSlot: () => PANELS.map((panel) => ({ options: panel })) });
+
+	/** A width in the 36–39 band past a whole cell: 277px fits six cells, not
+	   the seven a width-plus-gap estimate reports. */
+	const padded = buildSidebar({ width: 277 });
+	inner.sync();
+	check("a padded width does not buy a seventh cell", visibleRows(padded.nav).length === 6, `${visibleRows(padded.nav).length}`);
 
 	/** Row mode, three rows, wide sidebar: everything fits, nothing hides. */
 	inner.setPreferences({ mode: "row", rows: 3 }, false);

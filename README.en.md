@@ -28,7 +28,7 @@ configurable menu.
 | Capability | Behaviour |
 |---|---|
 | Layout switch | Settings → General → "Sidebar panel menu" toggles **Button row** and **List**; the button row is the default |
-| Row cap | 1–3 rows, 1 by default; cells per row are measured from the real sidebar width (36px cell + 4px gap) |
+| Row cap | 1–3 rows, 1 by default; cells per row are measured from the real sidebar width (36px cell + 4px gap + 2px inline padding), and one cell at the end of each row is always kept for More |
 | Drag to reorder | Drag any entry onto another one; row mode reads the left/right half for the insertion point, list mode the top/bottom half |
 | Sort inside More | The rows More lists sort against each other: drop on a row's top half to insert above it, its bottom half to insert below — always along the menu's own vertical axis, whichever layout the panel bar uses. The shell's own "browse more plugins" and "create your plugin" rows take no part |
 | Pull out of More | Entries inside More drag back up into the panel bar too — drop one on the front half of a row and it takes that slot, back in view |
@@ -119,12 +119,16 @@ looks similar, switching to list mode makes them displace each other. Disable
   up-arrow on each More row there.
 - Sending an entry to the front pushes the last visible one into More — the
   folding slot is fixed, so gaining one costs one.
+- A row that fits n cells shows n-1 entries: the shell always renders More,
+  so that cell is never free. Entries that fill a row exactly hand the last
+  one to More instead of leaving the launcher alone on a row of its own.
 - No icon is drawn here: panel entries copy the structure their plugin
   registered, the three absorbed actions reference symbols in the shell's
   sprite. If the shell renames those ids or inlines the paths, the three lose
   their icon (panel entries are unaffected).
-- The row cap is measured in 36px cells; a shell that changes the cell size
-  needs the `CELL` constant updated.
+- The row cap is measured in 36px cells, 4px gaps and 2px inline padding; a
+  shell that changes those sizes needs `CELL` / `GAP` / `ROW_PAD` and the row
+  CSS `padding-inline` updated together.
 
 ## License
 
