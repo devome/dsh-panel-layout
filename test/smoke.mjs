@@ -326,6 +326,169 @@ if (JSDOM !== undefined) {
 		!/html\[data-dpl-mode\]\s*\[data-slot="settings\.launcher"\]/.test(css),
 	);
 
+	/* ── 0.2.2-rc.2 row wrapper ─────────────────────────────────────────────
+	   The shell now renders each panel row as `div.panelEntry > button.panelRow`,
+	   with the glyph anchor one level deeper inside `span.panelGlyph`, and — for
+	   an unpinnable wide row — a hover unpin button as the wrapper's second
+	   child. The reconcile must still find one cell per panel, keep the drag
+	   host on the wrapper, and leave the pin control out of its own path. */
+	console.log("\n0.2.2-rc.2 row wrapper");
+
+	/** 0.2.2-rc.2 sidebar markup: entry wrapper, glyph span, optional unpin. */
+	function buildWrappedSidebar({ labelled = true, width = 1200, unpin = true, withMore = true } = {}) {
+		document.body.innerHTML = "";
+		const nav = document.createElement("nav");
+		nav.setAttribute("aria-label", "全局面板");
+		for (const panel of PANELS) {
+			const entry = document.createElement("div");
+			entry.className = labelled ? "panelEntry panelEntryWide" : "panelEntry";
+			const button = document.createElement("button");
+			button.type = "button";
+			button.className = "panelRow";
+			button.setAttribute("aria-label", panel.label);
+			const glyph = document.createElement("span");
+			glyph.className = "panelGlyph";
+			glyph.setAttribute("aria-hidden", "true");
+			/* The renderer's slot anchor: a div with display:contents inside the
+			   glyph span, holding whatever icon that panel's plugin registered. */
+			const anchor = document.createElement("div");
+			anchor.setAttribute("data-slot", "sidebar.panellist");
+			anchor.setAttribute("style", "display: contents");
+			anchor.innerHTML = `<svg width="16" height="16" data-icon="panel-${panel.id}"><use href="#panel-${panel.id}"></use></svg>`;
+			glyph.appendChild(anchor);
+			button.appendChild(glyph);
+			if (labelled) {
+				const title = document.createElement("span");
+				title.className = "panelTitle";
+				title.textContent = panel.label;
+				button.appendChild(title);
+			}
+			entry.appendChild(button);
+			if (unpin && labelled) {
+				const pin = document.createElement("button");
+				pin.type = "button";
+				pin.className = "hHd-Xa_panelUnpin";
+				pin.setAttribute("aria-label", `从侧边栏取消固定${panel.label}`);
+				entry.appendChild(pin);
+			}
+			nav.appendChild(entry);
+		}
+		if (withMore) {
+			const wrap = document.createElement("div");
+			wrap.className = "moreAnchor";
+			const more = document.createElement("button");
+			more.type = "button";
+			more.className = "panelRow";
+			more.setAttribute("aria-label", "更多");
+			more.setAttribute("aria-haspopup", "menu");
+			const moreGlyph = document.createElement("span");
+			moreGlyph.setAttribute("aria-hidden", "true");
+			more.appendChild(moreGlyph);
+			if (labelled) {
+				const moreTitle = document.createElement("span");
+				moreTitle.textContent = "更多";
+				more.appendChild(moreTitle);
+			}
+			wrap.appendChild(more);
+			nav.appendChild(wrap);
+		}
+		document.body.appendChild(nav);
+
+		const launcher = document.createElement("div");
+		launcher.setAttribute("data-slot", "settings.launcher");
+		const account = document.createElement("button");
+		account.type = "button";
+		account.setAttribute("data-signed-out", "true");
+		launcher.appendChild(account);
+		document.body.appendChild(launcher);
+
+		Object.defineProperty(nav, "clientWidth", { value: width, configurable: true });
+		inner.__forgetNav();
+		return { nav };
+	}
+
+	inner.setPreferences({ mode: "row", rows: 3 }, false);
+	inner.resetOrder();
+	const wrapped = buildWrappedSidebar();
+	inner.sync();
+	const wrappedHosts = Array.from(wrapped.nav.children).filter((row) => row.dataset.dplId !== undefined);
+	check("the nav is located through the rc.2 entry wrapper", wrapped.nav.hasAttribute("data-dpl-nav"));
+	check("the row layout applies over the wrapper", wrapped.nav.getAttribute("data-dpl-mode-core") === "row");
+	check(
+		"every wrapped row still resolves to its panel",
+		PANELS.every((panel) => wrappedHosts.some((row) => row.dataset.dplId === panel.id)),
+		wrappedHosts.map((row) => row.dataset.dplId).join(","),
+	);
+	check("the unpin button never becomes a second cell", visibleRows(wrapped.nav).length === wrapped.nav.children.length, `${visibleRows(wrapped.nav).length}/${wrapped.nav.children.length}`);
+	const wrappedFirst = Array.from(wrapped.nav.children)[0];
+	check("the drag host is the entry wrapper", wrappedFirst.classList.contains("panelEntry") && wrappedFirst.getAttribute("data-dpl-drag") === "1", `${wrappedFirst.className} drag=${wrappedFirst.getAttribute("data-dpl-drag")}`);
+	check("the row button carries the drag flag", wrappedFirst.querySelector("button.panelRow").draggable === true);
+	check("the pin control stays out of the drag path", wrappedFirst.querySelector("button[class*=panelUnpin]").draggable !== true);
+	check("the name cell is tagged inside the row button", wrappedFirst.querySelector("span.panelTitle").hasAttribute("data-dpl-label"));
+	check("the More launcher is recognised inside its rc.2 wrapper", wrapped.nav.querySelector("[data-dpl-more] button")?.getAttribute("title") === "更多");
+
+	inner.setOrder(["mcp-connector", "plugins"]);
+	inner.sync();
+	const wrappedHostOf = (id) => Array.from(wrapped.nav.children).find((row) => row.dataset.dplId === id);
+	check(
+		"the stored order lands on the wrapper",
+		Number(wrappedHostOf("mcp-connector").style.order) < Number(wrappedHostOf("plugins").style.order),
+		`${wrappedHostOf("mcp-connector").style.order} / ${wrappedHostOf("plugins").style.order}`,
+	);
+	inner.resetOrder();
+
+	/** The rc.2 rail renders no label cell and no unpin button; nothing applies. */
+	const wrappedRail = buildWrappedSidebar({ labelled: false, width: 240 });
+	inner.sync();
+	check("the rc.2 icon rail is left untouched", !document.documentElement.hasAttribute("data-dpl-wide") && wrappedRail.nav.getAttribute("data-dpl-mode-core") === null);
+
+	/* Both rc.2 shapes are CSS-only — jsdom has no layout — so pin the two rules
+	   that keep a 36px cell a 36px cell and keep the pin control out of it. */
+	const rowCellRule = css.slice(css.indexOf('nav[data-dpl-nav][data-dpl-mode-core="row"] > *'));
+	check(
+		"row cells drop the shell's inline border",
+		/border:\s*0/.test(rowCellRule.slice(0, rowCellRule.indexOf("}"))),
+		rowCellRule.slice(0, rowCellRule.indexOf("}")).replace(/\s+/g, " "),
+	);
+	const rowButtonStart = css.indexOf('row"] button');
+	const rowButtonSelector = css.slice(rowButtonStart, css.indexOf("{", rowButtonStart));
+	check(
+		"the cell rule steps around the shell's unpin control",
+		rowButtonSelector.includes(':not([class*="panelUnpin"])'),
+		rowButtonSelector.replace(/\s+/g, " "),
+	);
+	const unpinRule = css.slice(css.indexOf('button[class*="panelUnpin"]'));
+	check(
+		"the unpin control keeps a corner placement in the cell",
+		/position:\s*absolute/.test(unpinRule.slice(0, unpinRule.indexOf("}")))
+			&& /width:\s*16px/.test(unpinRule.slice(0, unpinRule.indexOf("}"))),
+		unpinRule.slice(0, unpinRule.indexOf("}")).replace(/\s+/g, " "),
+	);
+
+	/* jsdom resolves these selectors through its cascade, so the cell and the
+	   shell's unpin control are checked as they lay out rather than as text. The
+	   shell's own rule stands underneath at its real specificity: the row rules
+	   must no longer reach the pin, and the pin must not blow up the cell. */
+	/* The boot-time stylesheet is not in the document yet — the sections below
+	   drive the DOM path directly — so stand it up here the way apply() does,
+	   after the shell's bundled CSS, as in the page. */
+	const shellStyle = document.createElement("style");
+	shellStyle.textContent = ".hHd-Xa_panelUnpin { position: absolute; width: 28px; height: 28px; display: inline-flex; }";
+	document.head.appendChild(shellStyle);
+	const pluginStyle = document.createElement("style");
+	pluginStyle.textContent = css;
+	document.head.appendChild(pluginStyle);
+	const cascade = buildWrappedSidebar();
+	inner.sync();
+	/* The mode gate is an apply()-time effect, so paint it here as boot does. */
+	document.documentElement.setAttribute("data-dpl-mode", inner.preferences().mode);
+	const cascadeRow = window.getComputedStyle(cascade.nav.querySelector("button.panelRow"));
+	const cascadePin = window.getComputedStyle(cascade.nav.querySelector("button[class*=panelUnpin]"));
+	check("a cell button lays out as a 36px cell", cascadeRow.width === "36px" && cascadeRow.position === "relative", `${cascadeRow.width} ${cascadeRow.position}`);
+	check("the unpin control overrides the shell's 28px corner", cascadePin.width === "16px" && cascadePin.position === "absolute", `${cascadePin.width} ${cascadePin.position}`);
+	pluginStyle.remove();
+	shellStyle.remove();
+
 	/* ── opening Settings without flashing the account menu ─────────────────
 	   The shell hands its open-settings action to the launcher's occupant, so
 	   the launcher's own node carries it; reading it there is one call, no
