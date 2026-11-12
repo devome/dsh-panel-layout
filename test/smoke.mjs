@@ -511,6 +511,68 @@ if (JSDOM !== undefined) {
 		} catch { return false; }
 	})());
 
+	/* ── the command-registry route comes first ─────────────────────────────
+	   The Desktop client hands bindings to a native keyboard bridge and drops
+	   synthesized keydowns, so the registry's own invoke is the only route that
+	   answers there. It must run before the gesture replay, carry the modal the
+	   shell would have reported, and stand down when the command is absent. */
+	inner.__setShortcuts({ catalog: { getSnapshot: () => [] } });
+	check("a catalog without settings.open offers no registry route", inner.invokeRegistered("settings.open") === false);
+
+	const invoked = [];
+	const shortcuts = {
+		catalog: {
+			getSnapshot: () => [{ id: "settings.open", label: "Open settings", binding: { code: "Comma", modifiers: ["control"] } }],
+		},
+		registry: {
+			invoke: (id, context) => {
+				invoked.push({ id, context });
+			},
+		},
+	};
+	inner.__setShortcuts(shortcuts);
+	check("the registry route reports success", inner.invokeRegistered("settings.open") === true);
+	check("the registry route names the command", invoked.length === 1 && invoked[0].id === "settings.open", JSON.stringify(invoked));
+	check("the registry route reports no modal when none is open", invoked[0].context.modal === null, JSON.stringify(invoked[0].context));
+	check("the registry route falls back to the page region", invoked[0].context.region === "page");
+
+	const modal = document.createElement("div");
+	modal.setAttribute("data-shortcut-modal", "settings");
+	document.body.appendChild(modal);
+	inner.invokeRegistered("settings.open");
+	check("the registry route reports the open modal", invoked[1].context.modal === "settings", JSON.stringify(invoked[1].context));
+	modal.remove();
+
+	invoked.length = 0;
+	inner.openSettings();
+	check("openSettings takes the registry route first", invoked.length === 1 && invoked[0].id === "settings.open", JSON.stringify(invoked));
+
+	const brokenRegistry = {
+		catalog: shortcuts.catalog,
+		registry: {
+			invoke: () => {
+				throw new Error("no command registry");
+			},
+		},
+	};
+	inner.__setShortcuts(brokenRegistry);
+	check("a throwing registry never escapes", inner.invokeRegistered("settings.open") === false);
+	inner.__setShortcuts(null);
+
+	/* The last-resort menu row is matched by its icon or its wording, so a
+	   build that swaps the glyph still opens Settings. */
+	const settingsMenuItem = document.createElement("button");
+	settingsMenuItem.setAttribute("role", "menuitem");
+	settingsMenuItem.setAttribute("aria-label", inner.utilityLabel("settings"));
+	check("a row is matched by its label alone", inner.settingsRow(settingsMenuItem) === true);
+	settingsMenuItem.removeAttribute("aria-label");
+	settingsMenuItem.textContent = inner.utilityLabel("settings");
+	check("a row is matched by its text alone", inner.settingsRow(settingsMenuItem) === true);
+	const otherMenuItem = document.createElement("button");
+	otherMenuItem.setAttribute("role", "menuitem");
+	otherMenuItem.textContent = inner.utilityLabel("contact");
+	check("a different row is not matched", inner.settingsRow(otherMenuItem) === false);
+
 	/** A nav that leaves the document is dropped and re-located. */
 	document.body.innerHTML = "";
 	inner.sync();
