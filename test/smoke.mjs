@@ -559,6 +559,128 @@ if (JSDOM !== undefined) {
 	check("a throwing registry never escapes", inner.invokeRegistered("settings.open") === false);
 	inner.__setShortcuts(null);
 
+	/* ── every route is believed only once the panel is on screen ───────────
+	   A narrow window turns the sidebar into a drawer, and that drawer is a
+	   dialog carrying `data-shortcut-modal="sidebar"`: from then on the shell
+	   drops any command declaring its own modals, silently, while a registry
+	   call still looks like it went through. So the shell's own Settings button
+	   — which opens the panel through its store and bypasses both the command
+	   table and that guard — is tried first, and each route is confirmed only
+	   by the panel appearing. */
+	const tick = () => new Promise((resolve) => { window.setTimeout(resolve, 0); });
+	check("no trigger is found while the document has none", inner.settingsTrigger() === null);
+	check("nothing reports as shown before anything opens", inner.settingsShown() === false);
+
+	const panel = document.createElement("div");
+	panel.setAttribute("data-shortcut-modal", "settings");
+	const triggerButton = document.createElement("button");
+	triggerButton.setAttribute("aria-haspopup", "dialog");
+	triggerButton.setAttribute("aria-expanded", "false");
+	const triggerAnchor = document.createElement("span");
+	triggerAnchor.setAttribute("data-slot", "settings.trigger");
+	triggerButton.appendChild(triggerAnchor);
+	document.body.appendChild(triggerButton);
+	let triggerWorks = true;
+	triggerButton.addEventListener("click", () => {
+		if (!triggerWorks) return;
+		triggerButton.setAttribute("aria-expanded", "true");
+		document.body.appendChild(panel);
+	});
+
+	check("the trigger is found through its slot", inner.settingsTrigger() === triggerButton);
+	check("a closed trigger does not count as shown", inner.settingsShown() === false);
+
+	inner.__setShortcuts(shortcuts);
+	invoked.length = 0;
+	inner.openSettings();
+	await tick();
+	check("openSettings clicks the shell's own button first", panel.isConnected && invoked.length === 0, JSON.stringify(invoked));
+	check("the trigger is left expanded", triggerButton.getAttribute("aria-expanded") === "true");
+	check("the shown panel is recognised", inner.settingsShown() === true);
+	let extraClicks = 0;
+	triggerButton.addEventListener("click", () => { extraClicks += 1; });
+	inner.openSettings();
+	await tick();
+	check("an already open panel is not toggled shut", panel.isConnected && extraClicks === 0, `clicks ${extraClicks}`);
+
+	/* A trigger that is present but does nothing must not end the chain: the
+	   registry is tried next, and when that one paints the panel the chain
+	   stops there instead of replaying a gesture nobody listens for. */
+	panel.remove();
+	triggerButton.setAttribute("aria-expanded", "false");
+	triggerWorks = false;
+	let gesturing = 0;
+	const keydownListener = () => { gesturing += 1; };
+	document.addEventListener("keydown", keydownListener, true);
+	const paintingRegistry = {
+		catalog: shortcuts.catalog,
+		registry: {
+			invoke: (id) => {
+				invoked.push({ id });
+				document.body.appendChild(panel);
+			},
+		},
+	};
+	inner.__setShortcuts(paintingRegistry);
+	invoked.length = 0;
+	inner.openSettings();
+	await tick();
+	await tick();
+	check("a dead trigger hands over to the registry", invoked.length === 1 && invoked[0].id === "settings.open", JSON.stringify(invoked));
+	check("the chain stops once the panel appears", panel.isConnected && gesturing === 0, `gestures ${gesturing}`);
+
+	/* Nothing answers: the report has to name every route that was tried, so a
+	   failure on a phone — where no console is in reach — is at least findable
+	   in the Desktop log. */
+	panel.remove();
+	triggerButton.setAttribute("aria-expanded", "false");
+	const silentRegistry = {
+		catalog: { getSnapshot: () => [] },
+		registry: { invoke: () => undefined },
+	};
+	inner.__setShortcuts(silentRegistry);
+	const warnings = [];
+	const realWarn = console.warn;
+	console.warn = (...args) => { warnings.push(args.join(" ")); };
+	try {
+		inner.openSettings();
+		await tick();
+		await tick();
+		await tick();
+		await tick();
+	} finally {
+		console.warn = realWarn;
+	}
+	document.removeEventListener("keydown", keydownListener, true);
+	check("a total failure is reported once", warnings.length === 1, JSON.stringify(warnings));
+	check(
+		"the report names every route tried",
+		warnings[0] !== undefined && warnings[0].includes("shell trigger") && warnings[0].includes("command registry") && warnings[0].includes("key gesture") && warnings[0].includes("launcher action") && warnings[0].includes("account menu"),
+		warnings[0],
+	);
+	inner.__setShortcuts(null);
+	triggerButton.remove();
+
+	/* ── the gesture replay goes to the document ────────────────────────────
+	   The shell's keyboard adapter is a capture listener on the document, so a
+	   gesture dispatched on the window never reaches it. The adapter's own
+	   consume() preventDefaults a gesture it handles, which is what the replay
+	   reports back. */
+	let heard = 0;
+	const captureListener = (event) => {
+		heard += 1;
+		event.preventDefault();
+	};
+	document.addEventListener("keydown", captureListener, true);
+	inner.__setShortcuts(shortcuts);
+	check("a gesture the adapter consumes reports success", inner.invokeCommand("settings.open") === true && heard === 1, `heard ${heard}`);
+	document.removeEventListener("keydown", captureListener, true);
+	heard = 0;
+	check("a gesture nobody consumes reports failure", inner.invokeCommand("settings.open") === false && heard === 0, `heard ${heard}`);
+	inner.__setShortcuts({ catalog: shortcuts.catalog, registry: undefined });
+	check("no binding means no gesture", inner.invokeCommand("settings.unknown") === false);
+	inner.__setShortcuts(null);
+
 	/* The last-resort menu row is matched by its icon or its wording, so a
 	   build that swaps the glyph still opens Settings. */
 	const settingsMenuItem = document.createElement("button");
