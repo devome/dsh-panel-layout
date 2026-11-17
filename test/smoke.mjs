@@ -744,6 +744,15 @@ if (JSDOM !== undefined) {
 	check("apply registers the More-menu rows", registered.some((row) => row.name === "sidebar.panellist.actions"));
 	check("both slot rows render a component", registered.every((row) => typeof row.component === "function"));
 	check("the settings row is ordered after appearance", (registered.find((row) => row.name === "settings.general.item")?.order ?? 0) > 10);
+	/* The shell's own footer rows (its unpinned entries, then 「浏览更多插件」 and
+	   「创建你的插件」) register on the default order 0, and a list slot renders in
+	   ascending order: the contributed rows have to sort before them to land at the
+	   head of More, where the shell puts an entry whose pin was cancelled. */
+	check(
+		"the More-menu rows sort ahead of the shell's footer rows",
+		(registered.find((row) => row.name === "sidebar.panellist.actions")?.order ?? 0) < 0,
+		`${registered.find((row) => row.name === "sidebar.panellist.actions")?.order}`,
+	);
 	check("apply wires effects with labels", effects.every((label) => typeof label === "string" && label.startsWith("panel-layout:")));
 
 	// ── the two slot components render the expected controls ───────────────
@@ -790,14 +799,52 @@ if (JSDOM !== undefined) {
 		JSON.stringify(hidden),
 	);
 	const moreTree = moreRow({ t: (key) => key, onDismiss: () => {} });
-	check("the More menu starts with a separator", moreTree.children[0].props.className === "dpl-menuSeparator");
 	check("the More menu lists every hidden entry", moreTree.children.length === hidden.length + 1, `${moreTree.children.length - 1} vs ${hidden.length}`);
+	const shape = (tree) => tree.children.map((child) => (child === null ? "null" : (child.props?.className ?? child.props?.id ?? child.type))).join(",");
+	check(
+		"the folded rows come first in the menu",
+		moreTree.children.slice(0, hidden.length).every((row) => typeof row.props.id === "string"),
+		shape(moreTree),
+	);
+	check("a rule then separates them from the shell's footer rows", moreTree.children.at(-1).props.className === "dpl-menuSeparator");
 	check(
 		"each More row carries its label and a select handler",
-		moreTree.children.slice(1).every((row) => typeof row.props.label === "string" && row.props.label !== "" && typeof row.props.onSelect === "function"),
+		moreTree.children.slice(0, hidden.length).every((row) => typeof row.props.label === "string" && row.props.label !== "" && typeof row.props.onSelect === "function"),
+	);
+	/* While the shell still lists an unpinned entry of its own under these rows it
+	   draws the rule before 「浏览更多插件」 itself, so the fragment contributes none. */
+	const withShellRows = moreRow({
+		t: (key) => key,
+		onDismiss: () => {},
+		entries: [
+			{ id: "mcp-connector", label: "MCP", pinned: true, active: false },
+			{ id: "context", label: "上下文", pinned: false, active: false },
+		],
+	});
+	check(
+		"the shell's own unpinned row supplies the rule",
+		withShellRows.children.length === hidden.length
+		&& withShellRows.children.every((row) => row.props.className !== "dpl-menuSeparator"),
+		shape(withShellRows),
+	);
+	const withPinnedOnly = moreRow({
+		t: (key) => key,
+		onDismiss: () => {},
+		entries: [{ id: "mcp-connector", label: "MCP", pinned: true, active: false }],
+	});
+	check(
+		"pinned-only rows leave the rule to this plugin",
+		withPinnedOnly.children.at(-1).props.className === "dpl-menuSeparator",
+		shape(withPinnedOnly),
 	);
 	check("the tight nav still keeps its More launcher", tight.nav.querySelector("[data-dpl-more]") !== null);
 	check("the hidden entries are not duplicated in the nav", tight.nav.querySelectorAll("button[data-dpl-util]").length === 0);
+
+	/* The fragment leads with the folded rows and may close with a rule, so the
+	   menu's own rows are addressed by class rather than by offset. */
+	function menuRowNodes(tree) {
+		return tree === null ? [] : tree.children.filter((node) => node !== null && node.props.className !== "dpl-menuSeparator");
+	}
 
 	/* ── icons: every row keeps the icon it belongs to ──────────────────────
 	   This plugin draws no glyph of its own: the absorbed utilities reference
@@ -829,7 +876,7 @@ if (JSDOM !== undefined) {
 		JSON.stringify(glyphHidden.map((entry) => [entry.id, entry.glyph])),
 	);
 	const glyphTree = moreRow({ t: (key) => key, onDismiss: () => {} });
-	const glyphRows = glyphTree.children.slice(1);
+	const glyphRows = menuRowNodes(glyphTree);
 	check("every More row receives an icon node", glyphRows.every((row) => row.props.icon !== null && row.props.icon !== undefined));
 	const panelGlyphRows = glyphRows.filter((row) => typeof row.props.icon.type === "function");
 	check(
@@ -844,7 +891,7 @@ if (JSDOM !== undefined) {
 	   control that brings it to the head of the order, where the cap shows it. */
 	console.log("\nmove to front");
 	const frontTree = moreRow({ t: (key) => key, onDismiss: () => {} });
-	const frontRows = frontTree.children.slice(1);
+	const frontRows = menuRowNodes(frontTree);
 	check(
 		"every More row offers a move-to-front handler",
 		frontRows.every((row) => typeof row.props.onFront === "function"),
@@ -878,8 +925,7 @@ if (JSDOM !== undefined) {
 	   take no part in this. */
 	console.log("\nsorting inside the More menu");
 	const renderedMenuRows = () => {
-		const tree = moreRow({ t: (key) => key, onDismiss: () => {} });
-		return tree === null ? [] : tree.children.slice(1).map((node) => node.type(node.props));
+		return menuRowNodes(moreRow({ t: (key) => key, onDismiss: () => {} })).map((node) => node.type(node.props));
 	};
 	/* A stand-in for the DOM node the handler gets through currentTarget. */
 	const fakeRow = (top = 0, height = 34) => {

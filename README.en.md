@@ -33,7 +33,7 @@ configurable menu.
 | Sort inside More | The rows More lists sort against each other: drop on a row's top half to insert above it, its bottom half to insert below — always along the menu's own vertical axis, whichever layout the panel bar uses. The shell's own "browse more plugins" and "create your plugin" rows take no part |
 | Pull out of More | Entries inside More drag back up into the panel bar too — drop one on the front half of a row and it takes that slot, back in view |
 | Move to front (touch) | Every More row carries an up-arrow button; one tap sends the entry to the head of the order, where the cap always shows it. A touch screen fires no HTML5 drag events, so this is the way there |
-| Overflow | Entries past the cap are hidden and listed in the shell's own More menu, in the same order |
+| Overflow | Entries past the cap are hidden and listed in the shell's own More menu, in the same order — above "browse more plugins" and "create your plugin", the seat the shell gives an entry whose pin was cancelled |
 | List budget | List mode keeps the first four entries on screen; the fifth onwards go to More |
 | Absorbing the bottom-left More | Settings / Feedback / Sign in become ordinary panel-menu entries that keep their original icons and reorder like anything else; the bottom-left More is hidden while signed out |
 | Sign-in awareness | Once signed in the Sign in entry is dropped, and the bottom-left corner returns to the account avatar instead of staying hidden |
@@ -41,7 +41,9 @@ configurable menu.
 
 Preferences live in the browser's `localStorage`
 (`dsh-panel-layout:settings` / `dsh-panel-layout:order`) and do not touch the
-shell's own pinning (`setPinned`).
+shell's own pinning (`setPinned`): the rows this plugin folds away stay pinned
+as far as the shell is concerned, so pinning back is this plugin's up-arrow
+control rather than the shell's pin button.
 
 ## Install
 
@@ -70,9 +72,15 @@ so this plugin:
    switching back to list mode or unloading the plugin restores the shell's own
    appearance;
 4. uses `sidebar.panellist.actions` only for what the DOM cannot do: putting the
-   entries the cap pushed out back into the shell's More menu. Those rows are
-   drop targets as well, and sorting them writes back to the same `order`; the
-   shell's own two rows are not this plugin's and take no part.
+   entries the cap pushed out back into the shell's More menu. Those rows
+   register *before* the shell's own rows (a list slot renders in ascending
+   `order`, the shell's rows sit on the default 0 and this one goes negative),
+   so they land at the head of More — the seat the shell gives an entry whose
+   pin was cancelled. The rule between the two groups is supplied here; while
+   the shell still lists unpinned entries of its own it draws that rule itself,
+   so this one is left out. Those rows are drop targets as well, and sorting
+   them writes back to the same `order`; the shell's own two rows are not this
+   plugin's and take no part.
 
 The absorbed actions go through: the shell's `settings.open` command when it has
 a binding, otherwise the `openSettings` action the shell hands the launcher
@@ -119,6 +127,10 @@ looks similar, switching to list mode makes them displace each other. Disable
   up-arrow on each More row there.
 - Sending an entry to the front pushes the last visible one into More — the
   folding slot is fixed, so gaining one costs one.
+- The rows listed in More take no part in the shell's pinning (`setPinned`):
+  folding is this plugin's own hiding, so the shell still counts them pinned and
+  its pin button only ever acts on its own rows. Bringing one back is the
+  up-arrow here.
 - A row that fits n cells shows n-1 entries: the shell always renders More,
   so that cell is never free. Entries that fill a row exactly hand the last
   one to More instead of leaving the launcher alone on a row of its own.
